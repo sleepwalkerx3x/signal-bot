@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import yfinance as yf
 from .constants import *
+import numpy as np
 
 def spy_tips_cool():
     for i in range(TRY_COUNT):
@@ -41,6 +42,8 @@ def spy_tips_cool():
         indicator = None
         cooldown = 0
         for j in range(i, 0, -1):
+            if np.isnan(spy_diff.iloc[-j]) or np.isnan(tips_diff.iloc[-j]):
+                return "Error", None, "SMA calculation failed, please try again later. Some indicators are NaN."
             if spy_diff.iloc[-j] > 0 and tips_diff.iloc[-j] > 0 and cooldown == 0:
                 if indicator == None:
                     cooldown = 0
@@ -76,6 +79,8 @@ def spy_tips_cool():
 
         # iterate over all new entries
         for j in range(last_rev_index + 1, 0):
+            if np.isnan(spy_diff.iloc[j]) or np.isnan(tips_diff.iloc[j]):
+                return "Error", None, "SMA calculation failed, please try again later. Some indicators are NaN."
             if cooldown > 0:
                 cooldown -= 1
             if spy_diff.iloc[j] > 0 and tips_diff.iloc[j] > 0 and cooldown == 0:
