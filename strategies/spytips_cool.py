@@ -1,22 +1,42 @@
 import os
 import pandas as pd
-import yfinance as yf
+import yahooquery as yq
 from .constants import *
 import numpy as np
+import time
 
 def spy_tips_cool():
     for i in range(TRY_COUNT):
-        spy = yf.download('^SP500TR', auto_adjust=True)
-        tips = yf.download('TIP', auto_adjust=True)
+        try:
+            spy = yq.Ticker('^SP500TR').history(period="max", adj_ohlc=True, adj_timezone=False)
+            tips = yq.Ticker('TIP').history(period="max", adj_ohlc=True, adj_timezone=False)
+        except Exception as e:
+            print(f"({i+1}/{TRY_COUNT}) Failed to download data from Yahoo Finance: {e}")
+            time.sleep(2)  # wait before retrying
+            continue
         # check if the data is empty
         if spy.empty and tips.empty:
-            print(f"({i}/{TRY_COUNT}) Failed to download data from Yahoo Finance. Please check your internet connection or the ticker symbols.")
+            print(f"({i+1}/{TRY_COUNT}) Failed to download data from Yahoo Finance. Please check your internet connection or the ticker symbols.")
+            time.sleep(2)  # wait before retrying
         else:
             break
     else:
         return "Error", "Failed to download data from Yahoo Finance after multiple attempts.", "Please try again later manually"
-    spy_close = spy['Close'].iloc[:, 0]
-    tips_close = tips['Close'].iloc[:, 0]
+    
+    # Extract date index from MultiIndex and set as DataFrame index
+    # Filter out any dates containing colon (time/timezone info)
+    spy_no_colon_mask = [':' not in str(date) for date in spy.index.get_level_values('date')]
+    tips_no_colon_mask = [':' not in str(date) for date in tips.index.get_level_values('date')]
+    
+    # Filter DataFrames and dates
+    spy = spy[spy_no_colon_mask]
+    tips = tips[tips_no_colon_mask]
+    
+    # Convert to datetime
+    spy.index = pd.to_datetime(spy.index.get_level_values('date'))
+    tips.index = pd.to_datetime(tips.index.get_level_values('date'))
+    spy_close = spy['close']
+    tips_close = tips['close']
     spy_sma_rolling = spy_close.rolling(window=SPY_SMA).mean()
     tips_sma_rolling = tips_close.rolling(window=TIPS_SMA).mean()
     spy_diff = (spy_close - spy_sma_rolling) / spy_sma_rolling
