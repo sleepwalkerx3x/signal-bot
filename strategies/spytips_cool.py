@@ -24,17 +24,17 @@ def spy_tips_cool():
         return "Error", "Failed to download data from Yahoo Finance after multiple attempts.", "Please try again later manually"
     
     # Extract date index from MultiIndex and set as DataFrame index
-    # Filter out any dates containing colon (time/timezone info)
-    spy_no_colon_mask = [':' not in str(date) for date in spy.index.get_level_values('date')]
-    tips_no_colon_mask = [':' not in str(date) for date in tips.index.get_level_values('date')]
-    
-    # Filter DataFrames and dates
-    spy = spy[spy_no_colon_mask]
-    tips = tips[tips_no_colon_mask]
-    
-    # Convert to datetime
-    spy.index = pd.to_datetime(spy.index.get_level_values('date'))
-    tips.index = pd.to_datetime(tips.index.get_level_values('date'))
+    date_level_str_spy = pd.Index([str(x) for x in spy.index.get_level_values("date")])
+    date_level_str_tips = pd.Index([str(x) for x in tips.index.get_level_values("date")])
+
+    # Find which ones have time info
+    colon_mask_spy = date_level_str_spy.str.contains(":")
+    colon_mask_tips = date_level_str_tips.str.contains(":")
+
+    # Strip time info from affected rows
+    spy.index = pd.to_datetime(date_level_str_spy.where(~colon_mask_spy, date_level_str_spy.str.split(" ").str[0]))
+    tips.index = pd.to_datetime(date_level_str_tips.where(~colon_mask_tips, date_level_str_tips.str.split(" ").str[0]))
+
     spy_close = spy['close']
     tips_close = tips['close']
     spy_sma_rolling = spy_close.rolling(window=SPY_SMA).mean()
